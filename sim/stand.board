@@ -1,0 +1,26 @@
+# Sim addition. The board around the STM32G431CB on the thrust stand v2 PCB.
+# Crystal: see README, "Clock". Default here is the 25 MHz the HAL's HSE_VALUE and the schematic name.
+rcc:
+    hseFrequency: 25000000
+# V_SENSE (PA4, ADC2 IN17) and I_SENSE (PA5, ADC2 IN13) held at fixed voltages.
+adc2:
+    channelMillivolts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 307, 0, 0, 0, 915]
+# Six HX717 DOUT lines (lines 0-5), PD_SCK (line 6, in) and the ESC signal (line 7, in).
+loadcells: Scripted.ScriptedGpioPeer @ none
+    file: "sim/peers/loadcells.py"
+    numberOfGpios: 8
+    0 -> gpioPortB@0
+    1 -> gpioPortB@1
+    2 -> gpioPortB@2
+    3 -> gpioPortB@11
+    4 -> gpioPortB@12
+    5 -> gpioPortB@13
+gpioPortB:
+    10 -> loadcells@6
+gpioPortA:
+    7 -> loadcells@7
+eeprom: I2C.ScriptedI2cSlave @ i2c2 0x50
+    file: "sim/peers/m24c01.py"
+host: UART.ScriptedUartPeer @ sysbus 0x60200000
+    file: "sim/peers/host.py"
+    baudRate: 115200

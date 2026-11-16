@@ -1,0 +1,12 @@
+# Sim addition. Thrust stand v2 firmware (firmware/v2) on an STM32G431CB with six load-cell amplifiers,
+# the M24C01 calibration EEPROM, an ESC-signal probe and a scripted PC on USART3. `overlay:` and `elf:` are
+# relative to this file; `file:` peers inside the board resolve from the repository root (where run.sh runs sim).
+machines:
+  dut:
+    mcu: STM32G431CB
+    overlay: stand.board
+    elf: build/thrust-v2.elf
+media:
+  - type: uart
+    connect: [dut.usart3, dut.host]
+timeout: 2.6

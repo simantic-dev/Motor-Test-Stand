@@ -1,0 +1,20 @@
+--- a/firmware/v2/Core/Src/main.c
++++ b/firmware/v2/Core/Src/main.c
+@@ -579,7 +579,7 @@
+     __HAL_TIM_SET_COMPARE(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL, 20); // 100% duty cycle
+     HAL_TIM_PWM_Start(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL);
+     HAL_Delay(1); // wait
+-    __HAL_TIM_SET_COUNTER(&CELLAMP_CLK_HTIM, 0xffff);
++    __HAL_TIM_SET_COUNTER(&CELLAMP_CLK_HTIM, 15);
+     HAL_TIM_PWM_Stop(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL);
+     __HAL_TIM_SET_COMPARE(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL, 10);
+     PulseCounter = 0;
+@@ -682,7 +682,7 @@
+         }
+         else if (PulseCounter >= 25)
+         {
+-            __HAL_TIM_SET_COUNTER(&CELLAMP_CLK_HTIM, 0xffff);            // set pin low
++            __HAL_TIM_SET_COUNTER(&CELLAMP_CLK_HTIM, 15);            // set pin low
+             HAL_TIM_PWM_Stop_IT(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL); // stop clock pulses
+             PulseCounter = 0;                                            // reset counter
+         }
