@@ -63,9 +63,46 @@ Configuration A, 2.6 s virtual, sim 0.10.0 (build f219eb31), not regenerated. To
 
 Configurations A and B, 2.6 s virtual each, sim 0.10.0 (build f219eb31): measured PA7 pulse width and telemetry period for the two crystal declarations.
 
+### Proposed firmware fix
+
+**This is a patch we propose, not applied upstream.** `firmware/v2` is unchanged; the patch lives in `sim/proposed-firmware-fix.patch` and is applied to a scratch copy only by `FIX=1 sh sim/build.sh` (-> `sim/build/thrust-v2-fixed.elf`), run with `FIX=1 sh sim/run.sh`. It clears the CC3 flag that `HX717_Init`'s init-time `HAL_TIM_PWM_Start`/`Stop` leaves set, so `HAL_TIM_PWM_Start_IT` (which sets `DIER.CC3IE`) no longer takes an immediate stale interrupt that `PulseCounter` counts as pulse 1:
+
+```diff
+diff --git a/firmware/v2/Core/Src/main.c b/firmware/v2/Core/Src/main.c
+index 0c95f98..f0b4d5a 100644
+--- a/firmware/v2/Core/Src/main.c
++++ b/firmware/v2/Core/Src/main.c
+@@ -629,6 +629,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+         if (HAL_GPIO_ReadPin(GPIOB, CELL1_Pin | CELL2_Pin | CELL3_Pin | CELL4_Pin | CELL5_Pin | CELL6_Pin) == 0 && PulseCounter == 0)
+         {
+             // read channel A with 128 gain (HX717 datasheet)
++            __HAL_TIM_CLEAR_FLAG(&CELLAMP_CLK_HTIM, TIM_FLAG_CC3); // PROPOSED: drop the CC3IF left set by HX717_Init
+             HAL_TIM_PWM_Start_IT(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL);
+         }
+ 
+```
+
+Measured on `sim 0.10.2 (build 83eb7a66)`, 2026-11-17, config A (25 MHz, 4 s virtual, `--trace-symbol HAL_TIM_PWM_Start_IT --trace-symbol HAL_TIM_PWM_PulseFinishedCallback`; logs in `sim/captures/run4s-*.log`):
+
+| | unmodified | with the proposed fix |
+| --- | --- | --- |
+| `HAL_TIM_PWM_Start_IT` calls in 4 s | 1 (54.159 ms) | 79 (one per 50 ms tick while DOUT is low and `PulseCounter == 0`; 40 of them land during the ~65 ms the down-counter takes from 0xFFFF to its first reload, with no callback after them) |
+| CC3 callbacks per read | 25, of which the first is stale (1 us after Start_IT): 24 real PD_SCK edges | 25, all real, 16 us apart (975 callbacks = 39 reads x 25) |
+| DOUT returned high by the peer (25th rising edge) | no | yes |
+| reads completed in 4 s | 0 | 39 (first at 120.1 ms; the peer logs only reads #1, #40, #160) |
+| cell 1 raw at zero thrust (peer drives 5000) | 2500 | 5000 |
+| cell forces (USART3 telemetry) | cell 1 stuck at -0.750 N, cells 2-6 at -0.250 N, never follow the throttle | cell 1 -0.500 N at rest, peak 7.140 N at 1900 us; cell 2 peak 0.729 N; cells 3-6 about 0; back to -0.500 N after the throttle returns to 1000 us |
+| `sim/check.py` (`sh sim/run.sh`, 2.6 s) | all ok; "reads completed: none" | all ok; "reads completed: yes"; cell 1 peaks 7.140 N |
+
+The peer (`peers/loadcells.py`) needed no change: it follows the HX717 protocol (DOUT low when ready, one bit per PD_SCK rising edge, DOUT high after the 25th). The firmware's start-up delay of about 65 ms per read (counter preset 0xFFFF counting down) is unchanged by the patch and is the firmware's own behaviour. Not checked on silicon.
+
+![HX717 playback, proposed fix](sim/screenshots/hx717-fixed-playback.gif)
+
+Playback of a captured run (virtual time), not real time: `sim 0.10.2 (build 83eb7a66)`, 4.0 s virtual, firmware built with the proposed patch, built by `python sim/gif.py fixed` from `sim/captures/run4s-fixed-*.log`.
+
 ### Gaps (found, not worked around)
 
-* **HX717 read gets 24 clock pulses, not 25 (sim 0.10.2).** The 0.10.0 failure (no CC3 callback after the first) is gone after the down-counting timer compare fix. In the 4 s capture (`sim/captures/run4s-stdout.log`, `--trace-symbol HAL_TIM_PWM_PulseFinishedCallback`): `HAL_TIM_PWM_Start_IT` at 54.159 ms, a CC3 callback 1 us later (before the first PWM period), the next callback at 119.679 ms (65.5 ms after the start) and then one every 16.0 us (the first interval is 25.7 us), 25 callbacks in total. The firmware counts that early callback as pulse 1, so the read has 24 real PD_SCK pulses; `PulseCounter` reaches 25, the clock is stopped, and the peer, which counts PD_SCK rising edges, sees 24 and never returns DOUT high ("HX717 reads completed: none"). The cell raw value is 2500 for the peer's 5000, which is the 24-bit sample shifted right by one, consistent with an early first sample. No second `HAL_TIM_PWM_Start_IT` occurs in 4 s: `main.c` starts a read only when all six DOUT pins are low, and after the 24th pulse they hold the last data bit. A firmware change that would give 25 real pulses is clearing CC3IF before `HAL_TIM_PWM_Start_IT`; not tried here, and not checked against silicon (the early callback is consistent with CC3IF left set by the init-time `HAL_TIM_PWM_Start`/`Stop` at `main.c` lines 580-583). `sim/check.py` expectations for cell 1 changed from -1.000 (raw 0) to -0.750 (raw 2500) for this reason; the "reads completed" line still prints `none`.
+* **HX717 read gets 24 clock pulses, not 25 (sim 0.10.2).** The 0.10.0 failure (no CC3 callback after the first) is gone after the down-counting timer compare fix. In the 4 s capture (`sim/captures/run4s-stdout.log`, `--trace-symbol HAL_TIM_PWM_PulseFinishedCallback`): `HAL_TIM_PWM_Start_IT` at 54.159 ms, a CC3 callback 1 us later (before the first PWM period), the next callback at 119.679 ms (65.5 ms after the start) and then one every 16.0 us (the first interval is 25.7 us), 25 callbacks in total. The firmware counts that early callback as pulse 1, so the read has 24 real PD_SCK pulses; `PulseCounter` reaches 25, the clock is stopped, and the peer, which counts PD_SCK rising edges, sees 24 and never returns DOUT high ("HX717 reads completed: none"). The cell raw value is 2500 for the peer's 5000, which is the 24-bit sample shifted right by one, consistent with an early first sample. No second `HAL_TIM_PWM_Start_IT` occurs in 4 s: `main.c` starts a read only when all six DOUT pins are low, and after the 24th pulse they hold the last data bit. Clearing CC3IF before `HAL_TIM_PWM_Start_IT` gives 25 real pulses and completed reads in the sim, see "Proposed firmware fix"; not checked against silicon (the early callback is consistent with CC3IF left set by the init-time `HAL_TIM_PWM_Start`/`Stop` at `main.c` lines 580-583). `sim/check.py` expectations for cell 1 changed from -1.000 (raw 0) to -0.750 (raw 2500) for this reason; the "reads completed" line still prints `none`.
 * ADC inputs are constant; a current sensor that follows thrust needs a dynamic source.
 * The thrust model in `peers/loadcells.py` and the calibration image in `peers/m24c01.py` are invented (marked `MODELED SIMPLIFICATION`); no value is from a real stand.
 
@@ -74,6 +111,7 @@ Configurations A and B, 2.6 s virtual each, sim 0.10.0 (build f219eb31): measure
 ```sh
 sh sim/build.sh              # firmware/v2 -> sim/build/thrust-v2.elf (needs arm-none-eabi-gcc)
 sh sim/build.sh patched      # optional: configuration C's ELF
+FIX=1 sh sim/build.sh        # PROPOSED stale-CC3IF fix -> thrust-v2-fixed.elf; run with FIX=1 sh sim/run.sh
 sh sim/run.sh                # configuration A, asserts on the UART output and peer reports
 HSE=24000000 sh sim/run.sh   # configuration B
 python3 sim/plot.py "build string"   # screenshots, needs matplotlib

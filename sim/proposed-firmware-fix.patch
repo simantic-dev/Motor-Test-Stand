@@ -1,0 +1,12 @@
+diff --git a/firmware/v2/Core/Src/main.c b/firmware/v2/Core/Src/main.c
+index 0c95f98..f0b4d5a 100644
+--- a/firmware/v2/Core/Src/main.c
++++ b/firmware/v2/Core/Src/main.c
+@@ -629,6 +629,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+         if (HAL_GPIO_ReadPin(GPIOB, CELL1_Pin | CELL2_Pin | CELL3_Pin | CELL4_Pin | CELL5_Pin | CELL6_Pin) == 0 && PulseCounter == 0)
+         {
+             // read channel A with 128 gain (HX717 datasheet)
++            __HAL_TIM_CLEAR_FLAG(&CELLAMP_CLK_HTIM, TIM_FLAG_CC3); // PROPOSED: drop the CC3IF left set by HX717_Init
+             HAL_TIM_PWM_Start_IT(&CELLAMP_CLK_HTIM, CELLAMP_CLK_CHANNEL);
+         }
+ 

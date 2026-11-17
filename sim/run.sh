@@ -3,11 +3,12 @@
 # own UART output and the peers' reports. Needs `sim` on PATH (or SIM=...) and sim/build/*.elf from sim/build.sh.
 #   sh sim/run.sh                       25 MHz crystal, stock firmware      (configuration A)
 #   HSE=24000000 sh sim/run.sh          24 MHz crystal, stock firmware      (configuration B)
+#   FIX=1 sh sim/run.sh                 25 MHz, firmware + sim/proposed-firmware-fix.patch (D)
 #   ELF=thrust-v2-patched.elf sh sim/run.sh   25 MHz, firmware + sim/firmware-cnt-preset.patch (C)
 # Output in sim/out/<hse>-<elf>/: uart.log (USART3 both directions, timestamped), sim.log (peer logs).
 set -e
 cd "$(dirname "$0")/.."
-SIM=${SIM:-sim}; HSE=${HSE:-25000000}; ELF=${ELF:-thrust-v2.elf}
+SIM=${SIM:-sim}; HSE=${HSE:-25000000}; ELF=${ELF:-thrust-v2.elf}; [ -n "$FIX" ] && ELF=thrust-v2-fixed.elf
 [ -f "sim/build/$ELF" ] || { echo "build first: sim/build.sh [patched]"; exit 1; }
 OUT=sim/out/$HSE-${ELF%.elf}; mkdir -p "$OUT"
 sed "s/hseFrequency: .*/hseFrequency: $HSE/" sim/stand.board > $OUT/stand.board

@@ -2,16 +2,18 @@
 # Sim addition. Builds firmware/v2 (STM32G431CBUx, the CubeIDE project) into sim/build/thrust-v2.elf
 # with arm-none-eabi-gcc directly; no CubeIDE needed, no source file is modified.
 # `sh sim/build.sh patched` builds a scratch copy with sim/firmware-cnt-preset.patch applied instead
-# (-> sim/build/thrust-v2-patched.elf); the tracked sources are never touched.
+# (-> sim/build/thrust-v2-patched.elf); `FIX=1 sh sim/build.sh` does the same with sim/proposed-firmware-fix.patch (-> thrust-v2-fixed.elf); the tracked sources are never touched.
 # Float printf/scanf are linked because the firmware formats and parses floats on its UART.
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NAME=thrust-v2
-if [ "$1" = patched ]; then
+if [ "$1" = patched ] || [ -n "$FIX" ]; then
+  P=firmware-cnt-preset; NAME=thrust-v2-patched
+  [ -n "$FIX" ] && { P=proposed-firmware-fix; NAME=thrust-v2-fixed; }   # FIX=1: the PROPOSED stale-CC3IF fix
   rm -rf "$ROOT/sim/build/v2-patched"; mkdir -p "$ROOT/sim/build"
   cp -R "$ROOT/firmware/v2" "$ROOT/sim/build/v2-patched"
-  (cd "$ROOT/sim/build/v2-patched" && patch -p3 < "$ROOT/sim/firmware-cnt-preset.patch")
-  cd "$ROOT/sim/build/v2-patched"; NAME=thrust-v2-patched
+  (cd "$ROOT/sim/build/v2-patched" && patch -p3 < "$ROOT/sim/$P.patch")
+  cd "$ROOT/sim/build/v2-patched"
 else
   cd "$ROOT/firmware/v2"
 fi
