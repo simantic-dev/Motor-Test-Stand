@@ -1,0 +1,24 @@
+[loadcells] [loadcells] t=4.9 ms ESC pulse on PA7 now 1003 us (was 1000)
+[loadcells] [loadcells] t=24.9 ms ESC pulse on PA7 now 1000 us (was 1003)
+[host] [host] t=150.0 ms send P1000
+[host] [host] t=210.0 ms send P1000
+[host] [host] t=400.0 ms send P1300
+[host] [host] t=460.0 ms send P1300
+[loadcells] [loadcells] t=465.2 ms ESC pulse on PA7 now 1300 us (was 1000)
+[host] [host] t=900.0 ms send P1600
+[host] [host] t=960.0 ms send P1600
+[loadcells] [loadcells] t=965.5 ms ESC pulse on PA7 now 1600 us (was 1300)
+[host] [host] t=1500.0 ms send P1900
+[host] [host] t=1560.0 ms send P1900
+[loadcells] [loadcells] t=1565.8 ms ESC pulse on PA7 now 1900 us (was 1600)
+[host] [host] t=2000.0 ms send F10.5
+[eeprom] [eeprom] t=2000.8 ms write 8 bytes at 0x10: 17 b7 d1 38 00 00 80 3f
+[host] [host] t=2200.0 ms send P1000
+[host] [host] t=2260.0 ms send P1000
+[loadcells] [loadcells] t=2264.9 ms ESC pulse on PA7 now 1000 us (was 1900)
+Scenario: sim/out/25000000-thrust-v2/scenario.yaml
+  dut
+Elapsed: 25.950s
+real 27.12
+user 25.93
+sys 0.12

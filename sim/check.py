@@ -18,7 +18,7 @@ need(all(v in esc for v in (1000, 1300, 1600, 1900)), "firmware echoes ESC pulse
 volts = [float(f[1]) for _, f in tel[2:]]; amps = [float(f[2]) for _, f in tel[2:]]
 need(all(15.9 < v < 16.1 for v in volts) and all(9.9 < a < 10.1 for a in amps), f"ADC2 via DMA: V {min(volts):.3f}..{max(volts):.3f}, A {min(amps):.3f}..{max(amps):.3f} (inputs 915 mV and 307 mV, EEPROM multipliers)")
 c1 = [float(f[3]) for _, f in tel]
-need(abs(c1[2] + 0.5) < 1e-3 and abs(c1[-1] + 1.0) < 1e-3, f"cell 1 reads -0.500 (EEPROM offset 0.5 N, zero raw) then {c1[-1]:.3f} after 'F10.5' moved the offset")
+need(abs(c1[0] + 0.5) < 1e-3 and abs(c1[-1] + 0.75) < 1e-3, f"cell 1 reads -0.500 (EEPROM offset 0.5 N, zero raw) before the first HX717 read, then {c1[-1]:.3f} after 'F10.5' moved the offset to 1.0 N (raw 2500 = 5000 >> 1: the read sees 24 pulses, see README Gaps; was -1.000 with raw 0 on sim 0.10.0)")
 need("[eeprom]" in sim and "write 8 bytes at 0x10" in sim, "firmware wrote the cell 1 calibration to the EEPROM over I2C2 (8 bytes at 0x10)")
 pw = [(float(a), int(b)) for a, b in re.findall(r"t=([\d.]+) ms ESC pulse on PA7 now (\d+) us", sim)]
 steps = [pw[0]] + [b for a, b in zip(pw, pw[1:]) if abs(b[1] - a[1]) > 10]
