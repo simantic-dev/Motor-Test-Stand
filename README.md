@@ -1,5 +1,9 @@
 # Motor Test Stand
 
+<!-- simantic-banner -->
+> **Run this firmware with no hardware.** [Simantic](https://simantic.com) simulates the whole board, peripherals, sensors and buses included. Try it free at **[simantic.com](https://simantic.com)**, or run it locally: `curl -fsSL https://simantic.com/install | sh`
+
+
 Motor test stand software and hardware designs
 
 ## Running the firmware in a simulator (`sim/`)
