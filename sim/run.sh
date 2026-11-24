@@ -14,6 +14,6 @@ OUT=sim/out/$HSE-${ELF%.elf}; mkdir -p "$OUT"
 sed "s/hseFrequency: .*/hseFrequency: $HSE/" sim/stand.board > $OUT/stand.board
 sed "s#elf: .*#elf: ../../build/$ELF#" sim/scenario.yaml > $OUT/scenario.yaml
 "$SIM" run --scenario $OUT/scenario.yaml --timeout 2.6 --ascii \
-  --expect "1000 15.9" --expect "1300 15.9" --expect "1900 15.9" --expect "1000 15.9" \
+  --expect "1000 15.9" --expect "1300 15.9" --expect "1900 15.9" --expect "1000 15.9" --expect="-0.750 -0.250" \
   > "$OUT/uart.log" 2> "$OUT/sim.log"
 python3 -I sim/check.py "$HSE" "$ELF" "$OUT"

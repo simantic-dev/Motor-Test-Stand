@@ -15,7 +15,7 @@ Playback of a captured run (virtual time), not real time: sim 0.10.2 (build 83eb
 This fork adds `sim/`, which runs the **real `firmware/v2` image** (STM32G431CBUx, HAL, unmodified sources) in the
 Simantic simulator with the board's other parts as small Python peers. Everything under `sim/` is
 an addition of this fork; the upstream files, including the MIT `LICENSE`, are untouched. Configuration A and the 4 s capture were re-run on
-`sim 0.10.2 (build 83eb7a66)` on 2026-11-17 (2.6 s virtual in 17.9 s wall; 4 s virtual in 27 s). Rows B and C below are from
+`sim 0.10.2 (build 83eb7a66)` on 2026-11-17 (2.6 s virtual in 17.9 s wall; 4 s virtual in 27 s). On 2026-11-24 `sim 0.10.8 (build 64f89c38)` re-ran configuration A (`sh sim/run.sh`, 41 telemetry lines before the run's last `--expect` is met, period 50.010 ms, PA7 1300/1600/1900 us, ADC 15.983 V / 10.010 A, EEPROM write of 8 bytes at 0x10, all assertions pass) and the proposed-fix build (`FIX=1`: 52 telemetry lines, 25 real clock pulses per read, reads completed, cell 1 peak 7.140 N): same results as 0.10.2. Stock firmware is still partial: the HX717 read sees 24 pulses, which is the firmware's stale CC3 flag (see Gaps), not a simulator timer fault. `sim/run.sh` now also expects the post-`F10.5` telemetry line, because 0.10.8 `sim run` exits as soon as all `--expect` strings are seen. Rows B and C below are from
 `sim 0.10.0 (build f219eb31)`, 2026-11-16, and were not re-run.
 
 What runs, and what is a stand-in:
@@ -105,6 +105,8 @@ The peer (`peers/loadcells.py`) needed no change: it follows the HX717 protocol 
 Playback of a captured run (virtual time), not real time: `sim 0.10.2 (build 83eb7a66)`, 4.0 s virtual, firmware built with the proposed patch, built by `python sim/gif.py fixed` from `sim/captures/run4s-fixed-*.log`.
 
 ### Gaps (found, not worked around)
+
+Re-checked on sim 0.10.8: unchanged, and a stock-firmware result, not a model gap (the fix build completes reads).
 
 * **HX717 read gets 24 clock pulses, not 25 (sim 0.10.2).** The 0.10.0 failure (no CC3 callback after the first) is gone after the down-counting timer compare fix. In the 4 s capture (`sim/captures/run4s-stdout.log`, `--trace-symbol HAL_TIM_PWM_PulseFinishedCallback`): `HAL_TIM_PWM_Start_IT` at 54.159 ms, a CC3 callback 1 us later (before the first PWM period), the next callback at 119.679 ms (65.5 ms after the start) and then one every 16.0 us (the first interval is 25.7 us), 25 callbacks in total. The firmware counts that early callback as pulse 1, so the read has 24 real PD_SCK pulses; `PulseCounter` reaches 25, the clock is stopped, and the peer, which counts PD_SCK rising edges, sees 24 and never returns DOUT high ("HX717 reads completed: none"). The cell raw value is 2500 for the peer's 5000, which is the 24-bit sample shifted right by one, consistent with an early first sample. No second `HAL_TIM_PWM_Start_IT` occurs in 4 s: `main.c` starts a read only when all six DOUT pins are low, and after the 24th pulse they hold the last data bit. Clearing CC3IF before `HAL_TIM_PWM_Start_IT` gives 25 real pulses and completed reads in the sim, see "Proposed firmware fix"; not checked against silicon (the early callback is consistent with CC3IF left set by the init-time `HAL_TIM_PWM_Start`/`Stop` at `main.c` lines 580-583). `sim/check.py` expectations for cell 1 changed from -1.000 (raw 0) to -0.750 (raw 2500) for this reason; the "reads completed" line still prints `none`.
 * ADC inputs are constant; a current sensor that follows thrust needs a dynamic source.
